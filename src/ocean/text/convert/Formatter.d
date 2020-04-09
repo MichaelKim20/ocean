@@ -911,3 +911,95 @@ private struct FormatInfo
 
     public Flags flags;
 }
+
+/*******************************************************************************
+
+    Retrieves the members of an enumerated type `enum E`.
+
+    Params:
+        E = An enumerated type. `E` may have duplicated values.
+
+    Returns:
+        Static tuple composed of the members of the enumerated type `E`.
+        The members are arranged in the same order as declared in `E`.
+        The name of the enum can be found by querying the compiler for the
+        name of the identifier, i.e. `__traits(identifier, EnumAllMembers!MyEnum[i])`.
+
+*******************************************************************************/
+
+template EnumAllMembers(E)
+if (is(E == enum))
+{
+    import ocean.meta.AliasSeq;
+
+    template MemberIdentifier(string ident)
+    {
+        static if (ident == "MakeAlias")
+        {
+            template MakeAlias(alias value)
+            {
+                enum MakeAlias = value;
+            }
+        }
+        else
+        {
+            mixin(
+                `template MakeAlias(alias ` ~ ident ~ `)
+                 {
+                     alias MakeAlias = ` ~ ident ~ `;
+                 }`
+            );
+        }
+    }
+
+    template AllMemberToAlias (params...)
+    {
+        static if (params.length == 1)
+        {
+            alias AllMemberToAlias =
+                AliasSeq!(
+                    MemberIdentifier!(params[0]).MakeAlias!(__traits(getMember, E, params[0]))
+                );
+        }
+        else static if (params.length > 0)
+        {
+            alias AllMemberToAlias =
+                AliasSeq!(
+                    MemberIdentifier!(params[0]).MakeAlias!(__traits(getMember, E, params[0])),
+                    AllMemberToAlias!(params[1 .. $/2]),
+                    AllMemberToAlias!(params[$/2..$])
+                );
+        }
+        else
+        {
+            alias AllMemberToAlias = AliasSeq!();
+        }
+    }
+
+    alias EnumAllMembers = AllMemberToAlias!(__traits(allMembers, E));
+}
+
+/// Test of EnumAllMembers
+@safe unittest
+{
+    enum A { a }
+    static assert([ EnumAllMembers!A ] == [ A.a ]);
+    enum B { a, b, c, d, e }
+    static assert([ EnumAllMembers!B ] == [ B.a, B.b, B.c, B.d, B.e ]);
+}
+
+/// Test of EnumAllMembers - base type
+@safe unittest
+{
+    enum A : string { a = "alpha", b = "beta" }
+    static assert([ EnumAllMembers!A ] == [ A.a, A.b ]);
+}
+
+/// Test of EnumAllMembers
+@safe unittest
+{
+    enum E { member, a = 0, b = 0 }
+    static assert(__traits(identifier, EnumAllMembers!E[0]) == "member");
+    static assert(__traits(identifier, EnumAllMembers!E[1]) == "a");
+    static assert(__traits(identifier, EnumAllMembers!E[2]) == "b");
+}
