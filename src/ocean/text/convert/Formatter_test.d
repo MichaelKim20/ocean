@@ -340,6 +340,12 @@ version (unittest)
 }
 
 
+version (unittest)
+void fill (T) (T[] array, T[] elements...)
+{
+    array[] = elements[];
+}
+
 unittest
 {
     // This was not tested by tango, but the behaviour was the same
@@ -423,10 +429,65 @@ unittest
         FooBar = 42
     }
 
-    Foo f = Foo.FooBar;
-    test("42" == format("{}", f));
-    f = cast(Foo)36;
-    test("36" == format("{}", f));
+    string[] outputs;
+    outputs.length = 3;
+    assumeSafeAppend(outputs);
+
+    Foo[] foo_inputs;
+    foo_inputs.length = 3;
+    assumeSafeAppend(foo_inputs);
+    testNoAlloc(foo_inputs.fill(Foo.FooBar, cast(Foo)1, cast(Foo)36));
+    testNoAlloc(outputs.fill("Foo.FooBar", "Foo.B", "cast(Foo) 36"));
+    foreach (i, ref item; foo_inputs)
+        test!("==")(outputs[i], format("{}", item));
+
+
+    // Enums, EnumBaseType is string
+    enum FooA : string
+    {
+        a = "alpha",
+        b = "beta"
+    }
+
+    FooA[] fooa_inputs;
+    fooa_inputs.length = 3;
+    assumeSafeAppend(fooa_inputs);
+    testNoAlloc(fooa_inputs.fill(FooA.a, cast(FooA)"beta", cast(FooA)"gamma"));
+    testNoAlloc(outputs.fill("FooA.a", "FooA.b", "cast(FooA) gamma"));
+    foreach (i, ref item; fooa_inputs)
+        test!("==")(outputs[i], format("{}", item));
+
+
+    // Enums, EnumBaseType is real
+    enum FooB : real {
+        a = 1,
+        b = 1.41421,
+        c = 1.73205
+    }
+
+    FooB[] foob_inputs;
+    foob_inputs.length = 3;
+    assumeSafeAppend(foob_inputs);
+    testNoAlloc(foob_inputs.fill(FooB.a, cast(FooB)1.41421, cast(FooB)2));
+    testNoAlloc(outputs.fill("FooB.a", "FooB.b", "cast(FooB) 2.00"));
+    foreach (i, ref item; foob_inputs)
+        test!("==")(outputs[i], format("{}", item));
+
+    // Enums, EnumBaseType is struct
+    static struct S
+    {
+        int value;
+        int opCmp(S rhs) const nothrow { return value - rhs.value; }
+    }
+    enum FooC : S { a = S(1), b = S(2), c = S(3) }
+
+    FooC[] fooc_inputs;
+    fooc_inputs.length = 3;
+    assumeSafeAppend(fooc_inputs);
+    testNoAlloc(fooc_inputs.fill(FooC.a, cast(FooC)S(2), cast(FooC)S(42)));
+    testNoAlloc(outputs.fill("FooC.a", "FooC.b", "cast(FooC) { value: 42 }"));
+    foreach (i, ref item; fooc_inputs)
+        test!("==")(outputs[i], format("{}", item));
 
     // Chars
     static struct CharC { char c = 'H'; }

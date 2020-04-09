@@ -381,9 +381,51 @@ private void handle (T) (T v, FormatInfo f, scope FormatterSink sf, scope ElemSi
     static if (is(T == typeof(null)))
         se("null", f);
 
-    // Cannot print enum member name in D1, so just print the value
+    // Print enum type and member name
     else static if (is (T V == enum))
-        handle!(V)(v, f, sf, se);
+    {
+        import ocean.core.Traits;
+
+        void handleSwitchableEnum (T) (T v, FormatInfo f, scope FormatterSink sf, scope ElemSink se)
+        {
+            sw: switch (v)
+            {
+                foreach (idx, member; EnumAllMembers!T)
+                {
+                    case member :
+                        sf(T.stringof ~ "." ~ __traits(identifier, EnumAllMembers!T[idx]));
+                        break sw;
+                }
+                default :
+                    sf("cast(" ~ T.stringof ~ ") ");
+                    handle!(V)(v, f, sf, se);
+            }
+        }
+
+        void handleNonSwitchableEnum (T) (T v, FormatInfo f, scope FormatterSink sf, scope ElemSink se)
+        {
+            foreach (idx, member; EnumAllMembers!T)
+            {
+                if (v == member)
+                {
+                    sf(T.stringof ~ "." ~ __traits(identifier, EnumAllMembers!T[idx]));
+                    return;
+                }
+            }
+
+            sf("cast(" ~ T.stringof ~ ") ");
+            handle!(V)(v, f, sf, se);
+        }
+
+        static if (isIntegerType!(V) || isStringType!(V))
+        {
+            handleSwitchableEnum!(T)(v, f, sf, se);
+        }
+        else
+        {
+            handleNonSwitchableEnum!(T)(v, f, sf, se);
+        }
+    }
 
     // Delegate / Function pointers
     else static if (is(T == delegate))
