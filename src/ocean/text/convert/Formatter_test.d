@@ -568,13 +568,13 @@ void EnumMembers (T) (ref string[] members)
     }
 }
 
+enum Foo
+{
+    A = 0,
+    B = 1
+}
 unittest
 {
-    enum Foo
-    {
-        A = 0,
-        B = 1
-    }
     string[] members;
 
     foreach (member; __traits(allMembers, Foo))
