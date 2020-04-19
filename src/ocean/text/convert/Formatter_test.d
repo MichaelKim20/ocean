@@ -559,3 +559,26 @@ unittest
     // Used to work only with "{:X}", however this limitation was lifted
     assert(format("{X}", 42) == "2A");
 }
+
+void EnumMembers (T) (ref string[] members)
+{
+    foreach (member; __traits(allMembers, T))
+    {
+        members ~= member;
+    }
+}
+
+unittest
+{
+    enum Foo
+    {
+        A = 0,
+        B = 1
+    }
+    string[] members;
+
+    foreach (member; __traits(allMembers, Foo))
+        members ~= member;
+
+    assert(members == ["A", "B"]);
+}
